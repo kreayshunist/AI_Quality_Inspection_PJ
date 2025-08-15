@@ -141,9 +141,10 @@ Clean this directory before running with different flags to avoid mixing results
     </td>
     <td align="center">
       <b>Overlay 3</b><br>
-      <img alt="Screenshot 2025-08-15 at 2 47 49 AM" src="https://github.com/user-attachments/assets/c9cbeab5-0aba-4c9f-9661-87df09d2d0be" width="300"/>
+      <img alt="Screenshot 2025-08-15 at 2 49 08 AM" src="https://github.com/user-attachments/assets/9358e31e-55b9-4021-ba52-f491be519a6d" width="300"/>
     </td>
   </tr>
 </table>
+
 
 
