@@ -1,0 +1,12 @@
+ipykernel==6.17.1
+nbformat==5.10.4
+nbclient==0.10.2
+papermill==2.6.0
+numpy==2.0.2
+pandas==2.2.2
+matplotlib==3.10.0
+opencv-python==4.12.0.88
+Pillow==11.3.0
+tqdm==4.67.1
+PyYAML==6.0.2
+scikit-learn==1.6.1
