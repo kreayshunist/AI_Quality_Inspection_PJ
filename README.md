@@ -94,6 +94,56 @@ Clean this directory before running with different flags to avoid mixing results
 
 - Contains ground truth labels with corresponding filenames.
 
+## Sample Output
+<table>
+  <tr>
+    <td align="center">
+      <b>Mask</b><br>
+      <img src="https://github.com/user-attachments/assets/4b566c4c-bf03-4fc2-9d63-8d808c219d18" width="300"/>
+    </td>
+    <td align="center">
+      <b>Masked-zero out</b><br>
+      <img src="https://github.com/user-attachments/assets/6622dc11-e736-497d-a63e-21667cea17b1" width="300"/>
+    </td>
+    <td align="center">
+      <b>Masked-crop</b><br>
+      <img src="https://github.com/user-attachments/assets/c9905a46-6333-492d-b360-dc27ba0ff8b1" width="350"/>
+    </td>
+  </tr>
+</table>
 
+<table>
+  <tr>
+    <td align="center">
+      <b>Heatmap 1</b><br>
+      <img  alt="Screenshot 2025-08-15 at 2 44 56 AM" src="https://github.com/user-attachments/assets/7492e53e-aff3-4de6-a2e3-e817baf5af82" width="300"/>
+    </td>
+    <td align="center">
+      <b>Heatmap 2</b><br>
+      <img alt="Screenshot 2025-08-15 at 2 45 17 AM" src="https://github.com/user-attachments/assets/690fae90-e6e0-4ac8-94d0-f13d3d61945c" width="300"/>
+    </td>
+    <td align="center">
+      <b>Heatmap 3</b><br>
+      <img alt="Screenshot 2025-08-15 at 2 45 43 AM" src="https://github.com/user-attachments/assets/b8413e47-41fe-43bb-a531-0a845521e968" width="300"/>
+    </td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td align="center">
+      <b>Overlay 1</b><br>
+      <img  alt="Screenshot 2025-08-15 at 2 46 50 AM" src="https://github.com/user-attachments/assets/e6bd8884-d53c-4f01-8183-04ae4ed8ce81" width="300"/>
+    </td>
+    <td align="center">
+      <b>Overlay 2</b><br>
+      <img alt="Screenshot 2025-08-15 at 2 47 11 AM" src="https://github.com/user-attachments/assets/a092534e-0517-47bd-9b68-32181035662e" width="300"/>
+    </td>
+    <td align="center">
+      <b>Overlay 3</b><br>
+      <img alt="Screenshot 2025-08-15 at 2 47 49 AM" src="https://github.com/user-attachments/assets/c9cbeab5-0aba-4c9f-9661-87df09d2d0be" width="300"/>
+    </td>
+  </tr>
+</table>
 
 
