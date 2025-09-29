@@ -22,7 +22,7 @@ def check_device(requested: str) -> str:
     if requested != "cuda":
         return "cpu"
     try:
-        import torch 
+        import torch
         return "cuda" if torch.cuda.is_available() else "cpu"
     except Exception:
         return "cpu"
@@ -32,10 +32,10 @@ def check_device(requested: str) -> str:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--device", default="cuda", choices=["cuda", "cpu"]) 
+    ap.add_argument("--device", default="cuda", choices=["cuda", "cpu"])
     ap.add_argument("--use-cluster", type=int, default=0)
     ap.add_argument("--num-gpus", type=int, default=1)
-    ap.add_argument("--epochs", type=int, default=None) 
+    ap.add_argument("--epochs", type=int, default=None)
     args = ap.parse_args()
 
 
@@ -45,7 +45,7 @@ def main():
     MASKS_OUT = ROOT / "output" / "masks"
     ZERO_OUT = ROOT / "output" / "masked" / "zero_out"
     CROP_OUT = ROOT / "output" / "masked" / "crop"
-    
+
     for p in [MASKS_OUT, ZERO_OUT, CROP_OUT]:
         p.mkdir(parents=True, exist_ok=True)
 
@@ -60,11 +60,17 @@ def main():
     sh(["git", "checkout", SAM2_SHA], cwd=REPO)
     sh([sys.executable, "-m", "pip", "install", "-e", ".[dev]"], cwd=REPO)
 
-    # Get: default checkpoints 
+    # Get: default checkpoints
     dl_script = REPO / "checkpoints" / "download_ckpts.sh"
+    checkpoints_dir = REPO / "checkpoints"
+    # Only download if there are no .pt checkpoint files present
+    pt_files = list(checkpoints_dir.glob("*.pt"))
     if dl_script.exists():
-        dl_script.chmod(0o755)
-        sh(["bash", "download_ckpts.sh"], cwd=REPO / "checkpoints")
+        if len(pt_files) == 0:
+            dl_script.chmod(0o755)
+            sh(["bash", "download_ckpts.sh"], cwd=checkpoints_dir)
+        else:
+            print(f"[Info] Found {len(pt_files)} .pt file(s) in {checkpoints_dir}; skipping checkpoints download.")
     else:
         print("[Error] checkpoints/download_ckpts.sh not found; skipping checkpoints download.")
 
@@ -80,7 +86,7 @@ def main():
         update_epochs(DST_YAML, DST_YAML, int(args.epochs))
 
 
-    #Train 
+    #Train
     accel = "cuda" if final_device == "cuda" else "cpu"
     num_gpus = args.num_gpus if accel == "cuda" else 1
     train_cmd = [
@@ -91,11 +97,11 @@ def main():
     ]
     sh(train_cmd, cwd=REPO)
 
-    
+
     tuned_checkpoint = REPO / "sam2_logs" / "configs" / "train.yaml" / "checkpoints" / "checkpoint.pt"
 
 
-    #Inference 
+    #Inference
     try:
         import sam2  # noqa: F401
     except ModuleNotFoundError:

@@ -1,0 +1,87 @@
+# Python bytecode, caches
+__pycache__/
+src/__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.env
+.venv/
+venv/
+env/
+ENV/
+
+# Packaging / build
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# IDEs / editors
+.vscode/
+.idea/
+*.sublime-*
+*.swp
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Testing / coverage / logs
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Common binary/extension files
+*.so
+*.dll
+*.dylib
+
+# Node/npm (if used anywhere)
+node_modules/
+
+# Typical artifact directories
+artifacts/
+output/
+outputs/
+results/
+generated/
+tmp/
+temp/
+
+# Ignore image files normally produced by running the code (common formats)
+# This will ignore generated images anywhere in the repo.
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.tif
+*.tiff
+*.gif
+*.webp
+*.svg
+
+# If you want to keep source/training assets under a specific folder,
+# add explicit rules to keep them. For example, if sam2_repo is an external
+# repo that must remain tracked, un-ignore it and its files (including images).
+!/sam2_repo/
+!/sam2_repo/**
+
+# Because global '*.png' etc. above would still ignore image files inside
+# sam2_repo, explicitly un-ignore common image extensions inside it:
+!/sam2_repo/**/*.png
+!/sam2_repo/**/*.jpg
+!/sam2_repo/**/*.jpeg
+!/sam2_repo/**/*.bmp
+!/sam2_repo/**/*.tif
+!/sam2_repo/**/*.tiff
+!/sam2_repo/**/*.gif
+!/sam2_repo/**/*.webp
+!/sam2_repo/**/*.svg

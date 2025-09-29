@@ -2,6 +2,7 @@ import argparse, sys, subprocess
 from pathlib import Path
 import os, json
 import pandas as pd
+import torch
 from helper import (
     merge_w_labels,
     compute_metrics,
@@ -9,14 +10,13 @@ from helper import (
     roc_threshold,
     save_heatmaps
 )
+from warp_images_lightglue import warp_directory_with_lightglue
 
+torch.set_grad_enabled(False)
 
 def sh(cmd, cwd=None):
     print("[cmd]", " ".join(map(str, cmd)), f"(cwd={cwd})")
     subprocess.run(cmd, check=True, cwd=cwd)
-
-
-
 
 def main():
     ap = argparse.ArgumentParser()
@@ -37,13 +37,36 @@ def main():
     ROOT = Path(__file__).resolve().parents[1]
     REPO = ROOT / "anomalib"
     TRAIN_DIR = ROOT / "data" / "patchcore_data" / "train" / "good"
+    TRAIN_DIR_WARPED = ROOT / "data" / "patchcore_data_warped" / "train" / "good"
     TEST_NORMAL_DIR = ROOT / "data" / "patchcore_data" / "test" / "good"
     TEST_ABNORMAL_DIR = ROOT / "data" / "patchcore_data" / "test" / "bad"
+    TEST_NORMAL_DIR_WARPED = ROOT / "data" / "patchcore_data_warped" / "test" / "good"
+    TEST_ABNORMAL_DIR_WARPED = ROOT / "data" / "patchcore_data_warped" / "test" / "bad"
     PREDICT_DIR = ROOT / "output" / "masked" / args.masked
+    PREDICT_DIR_WARPED = ROOT / "output" / "masked_warped" / args.masked
     LABELS_CSV = ROOT / "data" / "patchcore_data" / "label.csv"
     IMAGE_SIZE = (256, 256)
     OUT_DIR = ROOT / "output"
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+    TRAIN_DIR_WARPED.mkdir(parents=True, exist_ok=True)
+    TEST_NORMAL_DIR_WARPED.mkdir(parents=True, exist_ok=True)
+    TEST_ABNORMAL_DIR_WARPED.mkdir(parents=True, exist_ok=True)
+    PREDICT_DIR_WARPED.mkdir(parents=True, exist_ok=True)
+
+    # 0) Determine a stable reference image from training set
+    exts = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"}
+    train_files = sorted([p for p in TRAIN_DIR.iterdir() if p.is_file() and p.suffix.lower() in exts])
+    if len(train_files) == 0:
+        raise RuntimeError(f"No training images found in {TRAIN_DIR}")
+    reference_image = train_files[0]
+    print(f"[warp] Using reference image for alignment: {reference_image}")
+
+    # 1) Warp training images into TRAIN_DIR_WARPED using LightGlue
+    warp_directory_with_lightglue(
+        input_dir=TRAIN_DIR,
+        output_dir=TRAIN_DIR_WARPED,
+        reference=reference_image,
+    )
 
     # anomalib clone -> checkout -> install
     if not (REPO / ".git").exists():
@@ -67,13 +90,25 @@ def main():
     from anomalib.post_processing import PostProcessor
     from torchvision.transforms import v2
 
-
+    # 1.5) Warp the test (inference) images to the same reference
+    warp_directory_with_lightglue(
+        input_dir=TEST_NORMAL_DIR,
+        output_dir=TEST_NORMAL_DIR_WARPED,
+        reference=reference_image,
+        save_reference_copy=False,
+    )
+    warp_directory_with_lightglue(
+        input_dir=TEST_ABNORMAL_DIR,
+        output_dir=TEST_ABNORMAL_DIR_WARPED,
+        reference=reference_image,
+        save_reference_copy=False,
+    )
     # 2) Custom Datamodule by anomalib
     img_preprocess = v2.Compose([v2.Resize(IMAGE_SIZE), v2.ToTensor()])
     dm = Folder(
         name="plastic_part",
         root=None,
-        normal_dir=TRAIN_DIR,
+        normal_dir=TRAIN_DIR_WARPED,
         abnormal_dir=TEST_ABNORMAL_DIR,
         normal_test_dir=TEST_NORMAL_DIR,
         test_split_mode=TestSplitMode.FROM_DIR,
@@ -97,52 +132,66 @@ def main():
     engine.train(datamodule=dm, model=model)
 
 
-    # Inference
-    dataset = PredictDataset(path=PREDICT_DIR, image_size=IMAGE_SIZE)
-    predictions = engine.predict(model=model, dataset=dataset)
-    print(f"Predictions: {len(predictions)}")
+    # Inference on warped test images (good + bad)
+    dataset_good = PredictDataset(path=TEST_NORMAL_DIR_WARPED, image_size=IMAGE_SIZE)
+    dataset_bad = PredictDataset(path=TEST_ABNORMAL_DIR_WARPED, image_size=IMAGE_SIZE)
+    predictions_good = engine.predict(model=model, dataset=dataset_good)
+    predictions_bad = engine.predict(model=model, dataset=dataset_bad)
+    predictions = list(predictions_good) + list(predictions_bad)
+    print(f"Predictions: {len(predictions)} (good={len(predictions_good)}, bad={len(predictions_bad)})")
 
-    # predictions -> DataFrame 
-    if not predictions or not (hasattr(predictions[0], "pred_score") and hasattr(predictions[0], "pred_label")):
+    # predictions -> rows for saving and arrays for metrics
+    if not predictions:
         raise RuntimeError("predictions is empty")
 
-
-
     pred_rows = []
-    for p in predictions:
+    y_true_list = []
+    scores_list = []
+
+    # good (label=0)
+    for p in predictions_good:
         path = p.image_path[0] if isinstance(p.image_path, list) else p.image_path
-        score = float(p.pred_score.flatten()[0]) # normalized pred_score by anomalib
-        label = int(p.pred_label)    
+        score = float(p.pred_score.flatten()[0]) if hasattr(p, "pred_score") else 0.0
+        pred_label = int(p.pred_label) if hasattr(p, "pred_label") else 0
         pred_rows.append({
             "filename": os.path.basename(str(path)),
             "pred_score": score,
-            "predicted_label": label,
+            "predicted_label": pred_label,
         })
-    pred_df = pd.DataFrame(pred_rows) 
+        y_true_list.append(0)
+        scores_list.append(score)
 
+    # bad (label=1)
+    for p in predictions_bad:
+        path = p.image_path[0] if isinstance(p.image_path, list) else p.image_path
+        score = float(p.pred_score.flatten()[0]) if hasattr(p, "pred_score") else 0.0
+        pred_label = int(p.pred_label) if hasattr(p, "pred_label") else 0
+        pred_rows.append({
+            "filename": os.path.basename(str(path)),
+            "pred_score": score,
+            "predicted_label": pred_label,
+        })
+        y_true_list.append(1)
+        scores_list.append(score)
 
-    # Map with GT labels
-    labeled_df = merge_w_labels(pred_df, LABELS_CSV)  
-
-    threshold_info = None
-
-    # Case 1: ROC curve based threshold 
+    # Thresholding strategy
     if args.threshold is not None:
         print("Apply ROC Curve threshold")
-        y_true = labeled_df["label"].astype(int).to_numpy()
-        scores = labeled_df["pred_score"].astype(float).to_numpy()
-
-        thr, info = roc_threshold(y_true, scores, max_fnr=float(args.threshold))
+        thr, info = roc_threshold(y_true_list, scores_list, max_fnr=float(args.threshold))
         threshold_info = {"strategy": "roc_youden_fnr", "threshold": thr, **info}
-
-        pred_df["predicted_label"] = (pred_df["pred_score"] >= thr).astype(int)
-        labeled_for_metrics = merge_w_labels(pred_df, LABELS_CSV)
-
-    # Case 2: Adaptive F1 based threshold
+        for row in pred_rows:
+            row["predicted_label"] = int(float(row["pred_score"]) >= thr)
     else:
-        print("Apply Adaptive F1 threshold")
+        print("Apply Adaptive F1 threshold (model post-processor)")
         threshold_info = {"strategy": "adaptive_f1"}
-        labeled_for_metrics = labeled_df
+
+    # Build final DataFrames
+    pred_df = pd.DataFrame(pred_rows)
+    y_pred_list = [int(r["predicted_label"]) for r in pred_rows]
+    labeled_for_metrics = pd.DataFrame({
+        "label": y_true_list,
+        "predicted_label": y_pred_list,
+    })
 
 
     metrics = compute_metrics(labeled_for_metrics)

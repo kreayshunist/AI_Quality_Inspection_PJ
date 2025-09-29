@@ -1,0 +1,10 @@
+{
+  "accuracy": 0.5714285714285714,
+  "precision": 0.5,
+  "recall": 0.7777777777777778,
+  "f1": 0.6086956521739131,
+  "n_samples": 21,
+  "threshold": {
+    "strategy": "adaptive_f1"
+  }
+}
